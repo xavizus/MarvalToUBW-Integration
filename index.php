@@ -512,8 +512,8 @@ foreach ($costcenters as $cs) {
             $line1 = "H;$cc;;Enskild faktura fr�n Kundserviceenheten;Fakturan avser best�llning som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
             $data['Names'][$i] = mb_convert_encoding($data['Names'][$i], 'ISO-8859-1', 'UTF-8');
             $data['descriptions'][$i] = mb_convert_encoding($data['descriptions'][$i], 'ISO-8859-1', 'UTF-8');
-            $line2 = "I;" . ($i + 1) . ";;;" . substr($data['descriptions'][$i], 0, 61) . ";1;" . $data['costs'][$i] . ";" . $data['Names'][$i] . ";" . $data['caseNumber'][$i] . ";\n";
-            $line3 = "P;" . ($i + 1) . ";;36400;20080;93160;\n";
+            $line2 = "I;1;;;" . substr($data['descriptions'][$i], 0, 61) . ";1;" . $data['costs'][$i] . ";" . $data['Names'][$i] . ";" . $data['caseNumber'][$i] . ";\n";
+            $line3 = "P;1;;36400;20080;93160;\n";
             fwrite($NKFP, $line1);
             fwrite($NKFP, $line2);
             fwrite($NKFP, $line3);
