@@ -489,7 +489,7 @@ foreach ($costcenters as $cs) {
     /**
      * If the costcenter does not start with 24
      */
-    elseif (!(substr($cc, 0,2) == $config->specialCases[0])) 
+    elseif (!(substr($cc, 0,2) == $config->specialCases[0] && $cc != 24300)) 
     {
         $line1 = "H;$cc;;Samlingsfaktura fr�n Kundserviceenheten;Fakturan avser best�llningar som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
         /**
@@ -507,7 +507,7 @@ foreach ($costcenters as $cs) {
             }
         }
     }
-    if (substr($cc, 0,2) == $config->specialCases[0]) {
+    if (substr($cc, 0,2) == $config->specialCases[0] && $cc != 24300) {
         for ($i = 0; $i < count($data['costs']); $i++) {
             $line1 = "H;$cc;;Enskild faktura fr�n Kundserviceenheten;Fakturan avser best�llning som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
             $data['Names'][$i] = mb_convert_encoding($data['Names'][$i], 'ISO-8859-1', 'UTF-8');
