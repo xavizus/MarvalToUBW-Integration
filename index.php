@@ -1,44 +1,18 @@
 <?php
+ini_set('error_log', './faktura.log');
+ini_set('display_errors', false);
 
+require_once("config.php");
 /**
- * Creating a Config Class.
- * @var stdClass
+ * Database connection
  */
-$config = new \stdClass;
-
-/**
- * NVOA Kostnadsst�llen
- * @var array
- */
-
-$config->NVOA = array(
-    28000,
-    28100,
-    28101,
-    28110,
-    28111,
-    28115,
-    28200,
-    28201,
-    28211,
-    28212,
-    28213,
-    28214,
-    28220,
-    28300,
-    28310,
-    28320,
-    28400,
-    28401,
-    28410,
-    28420,
-    28430,
-    28440,
-    28500,
-    28600,
-    28610,
-    18200
-);
+try {
+    $db = new PDO("sqlsrv:server={$config->db['server']},Database={$config->db['database']}", $config->db['username'], $config->db['password']);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+}catch(Exception $e) {
+    echo $e->getMessage();
+    die;
+}
 
 /**
  * Seperator for the content of the file.
@@ -167,12 +141,12 @@ class CostCenter
     }
 }
 
-echo "<head> <meta charset=\"ISO-8859-1\"><head>";
 /**
  * Open the file to read.
  */
+error_log("Reading files...");
 foreach (glob('nk01*') as $file) {
-    echo $file . "</br>";
+    error_log("Reading file: $file");
 
     /**
      * Check if there are any files
@@ -226,9 +200,39 @@ foreach (glob('nk01*') as $file) {
              */
             $newLine = explode("-", $line2[4], 3);
 
-            // Get costcenter
+            // Get caseNumber
             $caseNumber = trim($newLine[0] . "-" . $newLine[1]);
 
+            /**
+             * Lets try to solve costcenter if it's 0.
+             */
+
+             if ($costcenter == 0) {
+                error_log("Constcenter is 0. Trying to resolve it for case $caseNumber");
+                 /**
+                  * We need just the numbers and not the three characters "BEG-"
+                  */
+                  $caseNumberWithoutCharacters = ltrim($caseNumber, "BEG-");
+                 /**
+                * Try to solve it by connecting to the DB.
+                */
+                $sql = 'SELECT r.requestNumber, r.contactCIId, cc.code
+                FROM dbo.request as r
+                JOIN dbo.organisationalUnit as ou on ou.CIId = r.contactCIId
+                JOIN dbo.costCentre as cc on cc.costCentreId = ou.costCentreId
+                where r.requestNumber = :requestNumber;';
+                $stmt = $db->prepare($sql);
+                $stmt->execute([':requestNumber' => $caseNumberWithoutCharacters]);
+                $row = $stmt->fetch();
+
+                /**
+                 * If we successfully got a code, and it's not 0, then we suceeded!
+                 */
+                if(isset($row['code']) && $row['code'] != 0) {
+                    error_log("Could retrive costcentre {$row['code']}");
+                    $costcenter = (int) $row['code'];
+                }
+             }
             /**
              * Why do people have multiple dashes in their names?
              * 
@@ -273,6 +277,7 @@ foreach (glob('nk01*') as $file) {
             /**
              * If this is the first costcenter we enconter.
              */
+            error_log("Adding casenumber: $caseNumber to the list.");
             if (empty($costcenters)) {
                 /**
                  * Add a new costcenter to the array.
@@ -316,7 +321,7 @@ foreach (glob('nk01*') as $file) {
     /**
      * Rename, used to move the file to another directory. (Great name of the function!)
      */
-    rename($file, "inl�stfaktura/$file");
+    rename($file, "inlästfaktura/$file");
 }
 
 /**
@@ -390,7 +395,7 @@ if ($fp) {
     unlink("Below400");
 
 } else {
-    echo mb_convert_encoding("Filen Below400 existerar inte. D�r av existerar inga tidigare fakturor under 400!<br>", 'UTF-8', 'ISO-8859-1');
+    error_log(mb_convert_encoding("Filen Below400 existerar inte. Där av existerar inga tidigare fakturor under 400!<br>", 'UTF-8', 'ISO-8859-1'));
 }
 /**
  * Get current date in yyyy-mm-dd format.
@@ -480,12 +485,16 @@ foreach ($costcenters as $cs) {
         } else {
             fwrite($below400FP, $line1);
         }
-    } else {
+    } 
+    /**
+     * If the costcenter does not start with 24
+     */
+    elseif (!(substr($cc, 0,2) == $config->specialCases[0])) 
+    {
         $line1 = "H;$cc;;Samlingsfaktura fr�n Kundserviceenheten;Fakturan avser best�llningar som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
         /**
          * If costcenter is 0.
-         * Someone didn't do their job and set a costcenter in Marval.
-         * To the error file.
+         * Someone didn't do their job and set a costcenter in Marval and the script couldn't solve the problem.
          */
         if ($cc == 0) {
             fwrite($errFP, $line1);
@@ -498,7 +507,21 @@ foreach ($costcenters as $cs) {
             }
         }
     }
-
+    if (substr($cc, 0,2) == $config->specialCases[0]) {
+        for ($i = 0; $i < count($data['costs']); $i++) {
+            $line1 = "H;$cc;;Enskild faktura fr�n Kundserviceenheten;Fakturan avser best�llning som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
+            $data['Names'][$i] = mb_convert_encoding($data['Names'][$i], 'ISO-8859-1', 'UTF-8');
+            $data['descriptions'][$i] = mb_convert_encoding($data['descriptions'][$i], 'ISO-8859-1', 'UTF-8');
+            $line2 = "I;" . ($i + 1) . ";;;" . substr($data['descriptions'][$i], 0, 61) . ";1;" . $data['costs'][$i] . ";" . $data['Names'][$i] . ";" . $data['caseNumber'][$i] . ";\n";
+            $line3 = "P;" . ($i + 1) . ";;36400;20080;93160;\n";
+            fwrite($NKFP, $line1);
+            fwrite($NKFP, $line2);
+            fwrite($NKFP, $line3);
+            $NK48Cost += $data['costs'][$i];
+            $NK48Count++;
+        }   
+    }
+    else {
     for ($i = 0; $i < count($data['costs']); $i++) {
         //å ä ö does not work in UBW in UTF-8, so I am convering it to ANIS from UTF-8 (wtf?)....
         $data['Names'][$i] = mb_convert_encoding($data['Names'][$i], 'ISO-8859-1', 'UTF-8');
@@ -538,6 +561,7 @@ foreach ($costcenters as $cs) {
         }
     }
 }
+}
 
 /**
  * Close all files
@@ -563,4 +587,4 @@ echo mb_convert_encoding("K60: Antal fakturor: $NK60Count, Totalsumma: $NK60Cost
 
 $totalCost = $NK48Cost + $NK60Cost;
 
-echo mb_convert_encoding("\nJugge fakturerar nu f�r: $totalCost", 'UTF-8', 'ISO-8859-1');
+echo mb_convert_encoding("\nJugge fakturerar nu för: $totalCost", 'UTF-8', 'ISO-8859-1');
