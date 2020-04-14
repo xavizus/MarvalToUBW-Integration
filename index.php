@@ -473,7 +473,11 @@ foreach ($costcenters as $cs) {
      * Why does it need to be a customer number when they are in the same system?... Well well.
      */
     if ($data['isNVOA']) {
-        $line1 = "H;$cc;;Samlingsfaktura fr�n Kundserviceenheten;Fakturan avser best�llningar som har utf�rts av Kundserviceenheten;;K60KONTAKT;3011214;\n";
+        $line1 = mb_convert_encoding(
+            "H;$cc;;Samlingsfaktura från Kundserviceenheten;Fakturan avser beställningar som har utförts av Kundserviceenheten;;K60KONTAKT;3011214;\n",
+            'ISO-8859-1', 
+            'UTF-8'
+        );
         /**
          * if it's over 400 kr
          * Write the cost to the nk60 file.
@@ -491,7 +495,11 @@ foreach ($costcenters as $cs) {
      */
     elseif (!(substr($cc, 0,2) == $config->specialCases[0] && $cc != 24300)) 
     {
-        $line1 = "H;$cc;;Samlingsfaktura fr�n Kundserviceenheten;Fakturan avser best�llningar som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
+        $line1 = mb_convert_encoding(
+            "H;$cc;;Samlingsfaktura från Kundserviceenheten;Fakturan avser beställningar som har utförts av Kundserviceenheten;;K48KONTAKT;;\n",
+            'ISO-8859-1', 
+            'UTF-8'
+        );
         /**
          * If costcenter is 0.
          * Someone didn't do their job and set a costcenter in Marval and the script couldn't solve the problem.
@@ -509,7 +517,11 @@ foreach ($costcenters as $cs) {
     }
     if (substr($cc, 0,2) == $config->specialCases[0] && $cc != 24300) {
         for ($i = 0; $i < count($data['costs']); $i++) {
-            $line1 = "H;$cc;;Enskild faktura fr�n Kundserviceenheten;Fakturan avser best�llning som har utf�rts av Kundserviceenheten;;K48KONTAKT;;\n";
+            $line1 = mb_convert_encoding(
+                "H;$cc;;Enskild faktura från Kundserviceenheten;Fakturan avser beställning som har utförts av Kundserviceenheten;;K48KONTAKT;;\n",
+                'ISO-8859-1', 
+                'UTF-8'
+            );
             $data['Names'][$i] = mb_convert_encoding($data['Names'][$i], 'ISO-8859-1', 'UTF-8');
             $data['descriptions'][$i] = mb_convert_encoding($data['descriptions'][$i], 'ISO-8859-1', 'UTF-8');
             $line2 = "I;1;;;" . substr($data['descriptions'][$i], 0, 61) . ";1;" . $data['costs'][$i] . ";" . $data['Names'][$i] . ";" . $data['caseNumber'][$i] . ";\n";
@@ -582,9 +594,9 @@ if (filesize("K48" . $date . "01.txt") == 0) {
 /**
  * print info.
  */
-echo mb_convert_encoding("K48: Antal fakturor: $NK48Count, Totalsumma: $NK48Cost \n", 'UTF-8', 'ISO-8859-1');
-echo mb_convert_encoding("K60: Antal fakturor: $NK60Count, Totalsumma: $NK60Cost \n", 'UTF-8', 'ISO-8859-1');
+echo "K48: Antal fakturor: $NK48Count, Totalsumma: $NK48Cost \n";
+echo "K60: Antal fakturor: $NK60Count, Totalsumma: $NK60Cost \n";
 
 $totalCost = $NK48Cost + $NK60Cost;
 
-echo mb_convert_encoding("\nJugge fakturerar nu för: $totalCost", 'UTF-8', 'ISO-8859-1');
+echo "\nJugge fakturerar nu för: $totalCost";
